@@ -21,7 +21,7 @@ defmodule Docker.Volume do
   ```
   """
 
-  @adapter Application.compile_env(:docker, :adapter, Docker.Adapters.DefaultAdapter)
+  @adapter Application.compile_env(:docker, :adapter, Docker.DefaultAdapter)
 
   @typedoc """
   Representation of a Docker daemon [volume](`Docker.Volume`).
@@ -178,7 +178,6 @@ defmodule Docker.Volume do
     }
 
     with {:ok, id} <- @adapter.create_volume(name, opts),
-         IO.inspect(id, label: "id"),
          {:ok, volume} <- @adapter.inspect_volume(id) do
       {:ok, volume}
     end

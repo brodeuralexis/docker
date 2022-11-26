@@ -25,6 +25,7 @@ defmodule Docker.Client do
             {:query, query}
             | {:body, body}
             | {:headers, headers}
+            | {:not_found, boolean}
           )
 
   @doc """

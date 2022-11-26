@@ -1,6 +1,6 @@
 defmodule Docker.Config do
   @moduledoc """
-  Thef representation of a Docker daemon config and a bunch of functions for
+  The representation of a Docker daemon config and a bunch of functions for
   dealing with configs.
 
   # TODO: More information
@@ -21,7 +21,7 @@ defmodule Docker.Config do
   ```
   """
 
-  @adapter Application.compile_env(:docker, :adapter, Docker.Adapters.DefaultAdapter)
+  @adapter Application.compile_env(:docker, :adapter, Docker.DefaultAdapter)
 
   alias Docker.Exception
   alias Docker.NotFound

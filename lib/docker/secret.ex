@@ -23,7 +23,7 @@ defmodule Docker.Secret do
 
   alias Docker.{Exception, NotFound}
 
-  @adapter Application.compile_env(:docker, :adapter, Docker.Adapters.DefaultAdapter)
+  @adapter Application.compile_env(:docker, :adapter, Docker.DefaultAdapter)
 
   @typedoc """
   The ID of a [secret](`Docker.Secret`).
@@ -82,7 +82,7 @@ defmodule Docker.Secret do
   Lists [secrets](`Docker.Secret`).
 
   Unlike `list/1`, this function will *raise* if an error occurs, or return the
-  list directly on succes.
+  list directly on success.
 
   For more information about usage and options, see `list/1`.
   """

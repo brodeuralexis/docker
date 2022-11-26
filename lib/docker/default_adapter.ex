@@ -1,7 +1,10 @@
-defmodule Docker.Adapters.V1_41Adapter do
+defmodule Docker.DefaultAdapter do
   @moduledoc """
   An `Adapter` targeting the 1.41 version of the Docker daemon.
   """
+
+  require Docker.Utilities
+  import Docker.Utilities
 
   alias Docker.{
     Client,
@@ -10,9 +13,11 @@ defmodule Docker.Adapters.V1_41Adapter do
     Volume
   }
 
-  @version "v1.41"
+  @behaviour Docker.Adapter
 
-  @behaviour Docker.Adapters.Adapter
+  # The Docker.Client to use.
+  @client Application.compile_env(:docker, :client, Docker.Client)
+  @version "v1.41"
 
   # Docker.Config
 
@@ -68,11 +73,113 @@ defmodule Docker.Adapters.V1_41Adapter do
     end
   end
 
-  defp map_config(attrs) do
+  def map_config(attrs) do
     %Config{
       attrs: attrs,
       id: attrs["ID"],
       name: attrs["Spec"]["Name"]
+    }
+  end
+
+  # Docker.Container
+
+  @doc false
+  @impl true
+  def prune_containers(opts) do
+    path = [@version, "containers", "prune"]
+    filters = transfer(%{}, "label", opts, :label)
+    query = %{filters: Jason.encode!(filters)}
+
+    with {:ok, %{"ContainersDeleted" => container_ids}} <-
+           @client.request(:post, path, query: query) do
+      {:ok, if(container_ids, do: container_ids, else: [])}
+    end
+  end
+
+  # Docker.Event
+
+  @doc false
+  @impl true
+  def stream_events(opts) do
+    owner = Access.get(opts, :heir, self())
+    filters = prepare_list_events_filters(opts)
+    query = %{since: opts[:since], until: opts[:until], filters: Jason.encode!(filters)}
+
+    with {:ok, pid} <-
+           Docker.DynamicSupervisor.start_child(
+             Docker.DefaultAdapter.EventStream.child_spec(query: query, heir: owner)
+           ) do
+      {:ok, %Docker.DefaultAdapter.EventStream{pid: pid}}
+    else
+      :ignore ->
+        raise RuntimeError, "expected process to not be ignored"
+
+      {:error, {:already_started, pid}} ->
+        raise RuntimeError, "expected process to not already be started: #{inspect(pid)}"
+
+      {:error, :max_children} ->
+        raise RuntimeError, "expected :max_children to be :infinite"
+
+      {:error, reason} ->
+        {:error, reason}
+    end
+  end
+
+  @doc false
+  @impl true
+  def list_events(opts) do
+    opts =
+      opts
+      |> Map.new()
+      |> Map.put(:heir, self())
+
+    with {:ok, stream} <- stream_events(opts),
+         {:ok, events} <- do_list_events(stream) do
+      {:ok, Enum.reverse(events)}
+    end
+  end
+
+  @spec do_list_events(term, list) :: {:ok, list} | {:error, term}
+  defp do_list_events(stream, acc \\ []) do
+    receive do
+      {:docker_events, %Docker.Event{} = event} ->
+        do_list_events(stream, [event | acc])
+
+      {:docker_events, :done} ->
+        {:ok, acc}
+    end
+  end
+
+  defp prepare_list_events_filters(opts) do
+    filters = %{}
+
+    filters =
+      case Access.fetch(opts, :resource) do
+        {:ok, resources} ->
+          Map.put(filters, :type, resources)
+
+        :error ->
+          filters
+      end
+
+    filters =
+      case Access.fetch(opts, :type) do
+        {:ok, types} ->
+          Map.put(filters, :event, types)
+
+        :error ->
+          filters
+      end
+
+    filters
+  end
+
+  def map_event(attrs) do
+    %Docker.Event{
+      attrs: attrs,
+      resource: attrs["Type"],
+      event: attrs["Event"],
+      id: attrs["Actor"]["ID"]
     }
   end
 
@@ -158,7 +265,7 @@ defmodule Docker.Adapters.V1_41Adapter do
     end
   end
 
-  defp map_secret(attrs) do
+  def map_secret(attrs) do
     %Secret{
       attrs: attrs,
       id: attrs["ID"],
@@ -166,6 +273,41 @@ defmodule Docker.Adapters.V1_41Adapter do
       name: attrs["Spec"]["Name"],
       version: attrs["Version"]["Index"]
     }
+  end
+
+  # Docker.System
+
+  @doc false
+  @impl true
+  def authenticate(params) do
+    path = [@version, "auth"]
+    headers = [{"Content-Type", "application/json"}]
+
+    with {:ok, token} <-
+           @client.request(:post, path, headers: headers, body: params) do
+      {:ok, token}
+    end
+  end
+
+  @doc false
+  @impl true
+  def get_version() do
+    path = [@version, "version"]
+
+    with {:ok, %{"Version" => version}} <- @client.request(:get, path) do
+      {:ok, version}
+    end
+  end
+
+  @doc false
+  @impl true
+  def ping() do
+    path = [@version, "_ping"]
+
+    case @client.request(:get, path) do
+      {:ok, _} -> true
+      {:error, _} -> false
+    end
   end
 
   # Docker.Volume
@@ -222,7 +364,7 @@ defmodule Docker.Adapters.V1_41Adapter do
     end
   end
 
-  defp map_volume(attrs) do
+  def map_volume(attrs) do
     %Volume{
       attrs: attrs,
       name: attrs["Name"]

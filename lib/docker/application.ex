@@ -6,7 +6,8 @@ defmodule Docker.Application do
   @impl true
   def start(_type, _args) do
     children = [
-      Docker.DynamicSupervisor
+      Docker.DynamicSupervisor,
+      {Task.Supervisor, name: Docker.TaskSupervisor}
     ]
 
     opts = [strategy: :one_for_one, name: Docker.Supervisor]
