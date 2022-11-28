@@ -42,6 +42,11 @@ defmodule Docker.Container do
   @type status :: :created | :restarting | :running | :removing | :paused | :exited | :dead
 
   @typedoc """
+  The health of a [container](`Docker.Container`).
+  """
+  @type health :: :starting | :healthy | :unhealthy | :none
+
+  @typedoc """
   Representation of a Docker daemon [container](`Docker.Container`).
   """
   @type t :: %__MODULE__{
@@ -54,9 +59,93 @@ defmodule Docker.Container do
           status: status
         }
 
-  @derive {Inspect, only: [:attrs, :id, :image, :labels, :name, :short_id, :status]}
+  @derive {Inspect, only: [:id, :image, :labels, :name, :short_id, :status]}
   @enforce_keys [:attrs, :id, :image, :labels, :name, :short_id, :status]
   defstruct [:attrs, :id, :image, :labels, :name, :short_id, :status]
+
+  @typedoc """
+  The options that may be provided to the `list/1` function.
+  """
+  @type list_opts :: Enumerable.t()
+
+  @doc """
+  Lists [containers](`Docker.Container`).
+
+  ## TODO: Options
+  """
+  @spec list() :: {:ok, [t]} | {:error, Exception.t()}
+  @spec list(list_opts) :: {:ok, [t]} | {:error, Exception.t()}
+  def list(_opts \\ []) do
+    @adapter.list_containers(%{})
+  end
+
+  @doc """
+  Lists [containers](`Docker.Container`).
+
+  Unlike `list/1`, this function will *raise* if an error occurs, or return the
+  list directly on success.
+
+  For more information about usage and options, see `list/1`.
+  """
+  @spec list!() :: [t]
+  @spec list!(list_opts) :: [t]
+  def list!(opts \\ []) do
+    case list(opts) do
+      {:ok, containers} ->
+        containers
+
+      {:error, reason} ->
+        raise reason
+    end
+  end
+
+  @doc """
+  Gets a [container](`Docker.Container`).
+  """
+  @spec get(String.t()) :: {:ok, t} | {:error, Exception.t() | NotFound.t()}
+  def get(id_or_name) when is_binary(id_or_name) do
+    @adapter.inspect_container(id_or_name)
+  end
+
+  @doc """
+  Gets a [container](`Docker.Container`).
+
+  Unlike `get/1`, this function will *raise* if an error occurs, or return the
+  container directly on success.
+
+  For more information about usage, see `get/1`.
+  """
+  @spec get!(String.t()) :: t
+  def get!(id_or_name) do
+    case get(id_or_name) do
+      {:ok, container} ->
+        container
+
+      {:error, reason} ->
+        raise reason
+    end
+  end
+
+  @doc """
+  Reloads a [container](`Docker.Container`).
+  """
+  @spec reload(t) :: {:ok, t} | {:error, Exception.t() | NotFound.t()}
+  def reload(%__MODULE__{id: id}) do
+    get(id)
+  end
+
+  @doc """
+  Reloads a [container](`Docker.Container`).
+
+  Unlike `reload/1`, this function will *raise* if an error occurs, or return
+  the container directly on success.
+
+  For more information about usage, see `reload/1`.
+  """
+  @spec reload!(t) :: t
+  def reload!(%__MODULE__{id: id}) do
+    get!(id)
+  end
 
   @typedoc """
   The options that may be provided to the `prune/1` function.
@@ -76,12 +165,10 @@ defmodule Docker.Container do
   """
   @spec prune() :: {:ok, [id]} | {:error, Exception.t()}
   @spec prune(prune_opts) :: {:ok, [id]} | {:error, Exception.t()}
-  def prune(opts \\ []) do
-    labels = accumulate(opts, :label)
+  def prune(_opts \\ []) do
+    # labels = accumulate(opts, :label)
 
-    @adapter.prune_containers(%{
-      label: labels
-    })
+    @adapter.prune_containers(%{})
   end
 
   @doc """

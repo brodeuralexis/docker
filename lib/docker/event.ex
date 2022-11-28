@@ -42,7 +42,7 @@ defmodule Docker.Event do
     opts =
       opts
       |> prepare_list_opts()
-      |> Map.put(:since, Docker.Utilities.Transform.unix(since))
+      |> Map.put(:since, since)
 
     opts =
       case heir do
@@ -59,7 +59,7 @@ defmodule Docker.Event do
           opts
 
         until when not is_nil(until) ->
-          Map.put(opts, :until, Docker.Utilities.Transform.unix(until))
+          Map.put(opts, :until, until)
       end
 
     @adapter.stream_events(opts)
@@ -115,7 +115,7 @@ defmodule Docker.Event do
     opts =
       opts
       |> prepare_list_opts()
-      |> Map.put(:since, Docker.Utilities.Transform.unix(since))
+      |> Map.put(:since, since)
       |> Map.put(:until, until)
 
     @adapter.list_events(opts)

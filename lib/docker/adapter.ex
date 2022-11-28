@@ -51,11 +51,37 @@ defmodule Docker.Adapter do
 
   # Docker.Container
 
+  @type list_containers_opts :: %{
+          optional(:all) => boolean,
+          optional(:limit) => pos_integer,
+          optional(:size) => boolean,
+          optional(:task) => boolean,
+          optional(:before) => Container.id(),
+          optional(:since) => Container.id(),
+          optional(:ancestor) => [String.t()],
+          optional(:exited) => [pos_integer],
+          optional(:health) => [Container.health()],
+          optional(:id) => [Contanier.id()],
+          optional(:label) => [String.t()],
+          optional(:name) => [String.t()],
+          optional(:network) => [String.t()],
+          optional(:publish) => [String.t()],
+          optional(:status) => [Container.status()],
+          optional(:volume) => [String.t()]
+        }
+
+  @callback list_containers(list_containers_opts) ::
+              {:ok, [Container.t()]} | {:error, Exception.t()}
+
+  @callback inspect_container(String.t()) ::
+              {:ok, Container.t()} | {:error, Exception.t() | NotFound.t()}
+
   @type prune_containers_opts :: %{
           optional(:label) => [String.t()]
         }
 
-  @callback prune_containers(prune_containers_opts) :: {:ok, [Container.id()]} | {:error, term}
+  @callback prune_containers(prune_containers_opts) ::
+              {:ok, [Container.id()]} | {:error, Exception.t()}
 
   # Docker.Event
 
@@ -67,7 +93,8 @@ defmodule Docker.Adapter do
           optional(:heir) => term
         }
 
-  @callback stream_events(stream_events_opts) :: {:ok, Docker.EventStream.t()} | {:error, term}
+  @callback stream_events(stream_events_opts) ::
+              {:ok, Docker.EventStream.t()} | {:error, Exception.t()}
 
   @type list_events_opts :: %{
           optional(:since) => pos_integer(),

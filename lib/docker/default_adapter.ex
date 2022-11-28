@@ -9,6 +9,7 @@ defmodule Docker.DefaultAdapter do
   alias Docker.{
     Client,
     Config,
+    Container,
     Secret,
     Volume
   }
@@ -85,9 +86,64 @@ defmodule Docker.DefaultAdapter do
 
   @doc false
   @impl true
+  def list_containers(_opts) do
+    path = [@version, "containers", "json"]
+    query = %{}
+
+    with {:ok, body} <- @client.request(:get, path, query: query) do
+      {:ok, Enum.map(body, &map_list_container/1)}
+    end
+  end
+
+  defp map_list_container(attrs) do
+    %Container{
+      attrs: attrs,
+      id: attrs["Id"],
+      image: attrs["ImageID"],
+      labels: attrs["Labels"],
+      name: List.first(attrs["Names"]),
+      short_id: String.slice(attrs["Id"], 0, 12),
+      # FIXME: Validate status in order not to leak atoms
+      status: map_container_status(attrs["State"])
+    }
+  end
+
+  @doc false
+  @impl true
+  def inspect_container(id_or_name) do
+    path = [@version, "containers", id_or_name, "json"]
+
+    with {:ok, attrs} <- @client.request(:get, path) do
+      {:ok, map_inspect_container(attrs)}
+    end
+  end
+
+  defp map_inspect_container(attrs) do
+    %Container{
+      attrs: attrs,
+      id: attrs["Id"],
+      image: attrs["Image"],
+      labels: attrs["Config"]["Labels"],
+      name: attrs["Name"],
+      short_id: String.slice(attrs["Id"], 0, 12),
+      status: map_container_status(attrs["State"]["Status"])
+    }
+  end
+
+  defp map_container_status("created"), do: :created
+  defp map_container_status("restarting"), do: :restarting
+  defp map_container_status("running"), do: :running
+  defp map_container_status("removing"), do: :removing
+  defp map_container_status("paused"), do: :paused
+  defp map_container_status("exited"), do: :exited
+  defp map_container_status("dead"), do: :dead
+
+  @doc false
+  @impl true
   def prune_containers(opts) do
     path = [@version, "containers", "prune"]
-    filters = transfer(%{}, "label", opts, :label)
+    # transfer(%{}, "label", opts, :label)
+    filters = %{}
     query = %{filters: Jason.encode!(filters)}
 
     with {:ok, %{"ContainersDeleted" => container_ids}} <-
