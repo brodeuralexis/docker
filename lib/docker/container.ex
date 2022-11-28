@@ -66,7 +66,7 @@ defmodule Docker.Container do
   @typedoc """
   The options that may be provided to the `list/1` function.
   """
-  @type list_opts :: Enumerable.t()
+  @type list_opts :: keyword
 
   @doc """
   Lists [containers](`Docker.Container`).

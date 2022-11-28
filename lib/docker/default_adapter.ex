@@ -10,6 +10,7 @@ defmodule Docker.DefaultAdapter do
     Client,
     Config,
     Container,
+    Image,
     Secret,
     Volume
   }
@@ -236,6 +237,49 @@ defmodule Docker.DefaultAdapter do
       resource: attrs["Type"],
       event: attrs["Event"],
       id: attrs["Actor"]["ID"]
+    }
+  end
+
+  # Docker.Image
+
+  @doc false
+  @impl true
+  def list_images(_opts) do
+    path = [@version, "images", "json"]
+    query = %{}
+
+    with {:ok, body} <- @client.request(:get, path, query: query) do
+      {:ok, Enum.map(body, &map_list_image/1)}
+    end
+  end
+
+  defp map_list_image(attrs) do
+    %Image{
+      attrs: attrs,
+      id: attrs["Id"],
+      labels: attrs["Labels"] || %{},
+      short_id: String.slice(attrs["Id"], 7, 12),
+      tags: attrs["RepoTags"]
+    }
+  end
+
+  @doc false
+  @impl true
+  def inspect_image(id) do
+    path = [@version, "images", id, "json"]
+
+    with {:ok, attrs} <- @client.request(:get, path, not_found: true) do
+      {:ok, map_inspect_image(attrs)}
+    end
+  end
+
+  defp map_inspect_image(attrs) do
+    %Image{
+      attrs: attrs,
+      id: attrs["Id"],
+      labels: attrs["Config"]["Labels"] || %{},
+      short_id: String.slice(attrs["Id"], 7, 12),
+      tags: attrs["RepoTags"]
     }
   end
 

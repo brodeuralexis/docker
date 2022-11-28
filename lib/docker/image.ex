@@ -26,6 +26,16 @@ defmodule Docker.Image do
   ```
   """
 
+  require Docker.Utilities
+  import Docker.Utilities
+
+  alias Docker.{
+    Exception,
+    NotFound
+  }
+
+  @adapter Application.compile_env(:docker, :adapter, Docker.DefaultAdapter)
+
   @typedoc """
   The ID of an [image](`Docker.Image`).
   """
@@ -45,4 +55,75 @@ defmodule Docker.Image do
   @derive {Inspect, only: [:id, :labels, :short_id, :tags]}
   @enforce_keys [:attrs, :id, :labels, :short_id, :tags]
   defstruct [:attrs, :id, :labels, :short_id, :tags]
+
+  @typedoc """
+  The list of options that may be provided to the `list/1` function.
+  """
+  @type list_opts ::
+          Enumerable.t(
+            {:all, boolean}
+            | {:dangling, boolean}
+            | {:before, String.t() | [String.t()]}
+            | {:label, String.t() | [String.t()]}
+            | {:reference, String.t() | [String.t()]}
+            | {:since, String.t() | [String.t()]}
+          )
+
+  @doc """
+  Lists [images](`Docker.Image`).
+
+  ## TODO: Options
+  """
+  @spec list() :: {:ok, [t]} | {:error, Exception.t()}
+  @spec list(list_opts) :: {:ok, [t]} | {:error, Exception.t()}
+  def list(_opts \\ []) do
+    @adapter.list_images(%{})
+  end
+
+  @doc """
+  Lists [images](`Docker.Image`).
+
+  Unlike `list/1`, this function will *raise* if an error occurs, or return the
+  list directly on success.
+
+  For more information about usage and options, see `list/1`.
+  """
+  @spec list!() :: [t]
+  @spec list!(list_opts) :: [t]
+  def list!(opts \\ []) do
+    case list(opts) do
+      {:ok, images} ->
+        images
+
+      {:error, reason} ->
+        raise reason
+    end
+  end
+
+  @doc """
+  Gets an [image](`Docker.Image`).
+  """
+  @spec get(String.t()) :: {:ok, t} | {:error, Exception.t() | NotFound.t()}
+  def get(id) when is_binary(id) do
+    @adapter.inspect_image(id)
+  end
+
+  @doc """
+  Gets an [image](`Docker.Image`).
+
+  Unlike `get/1`, this function will *raise* if an error occurs, or return the
+  image directly on success.
+
+  For more information about usage, see `get/1`.
+  """
+  @spec get!(String.t()) :: t
+  def get!(id) when is_binary(id) do
+    case get(id) do
+      {:ok, image} ->
+        image
+
+      {:error, reason} ->
+        raise reason
+    end
+  end
 end

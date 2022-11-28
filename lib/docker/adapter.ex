@@ -13,6 +13,7 @@ defmodule Docker.Adapter do
     Config,
     Container,
     Event,
+    Image,
     # Plugin,
     Secret,
     Volume
@@ -104,6 +105,21 @@ defmodule Docker.Adapter do
         }
 
   @callback list_events(list_events_opts) :: {:ok, [Event.t()]} | {:error, Exception.t()}
+
+  # Docker.Image
+
+  @type list_images_opts :: %{
+          optional(:all) => boolean,
+          optional(:dangling) => boolean,
+          optional(:before) => [String.t()],
+          optional(:label) => [String.t()],
+          optional(:reference) => [String.t()],
+          optional(:since) => [String.t()]
+        }
+
+  @callback list_images(list_images_opts) :: {:ok, [Image.t()]} | {:error, Exception.t()}
+
+  @callback inspect_image(String.t()) :: {:ok, Image.t()} | {:error, Exception.t() | NotFound.t()}
 
   # Docker.Plugin
 
